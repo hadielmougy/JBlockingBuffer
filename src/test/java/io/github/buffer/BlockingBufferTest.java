@@ -47,4 +47,11 @@ public class BlockingBufferTest {
         Assert.assertTrue(10 == result.size());
         Assert.assertTrue(sum ==  result.stream().collect(Collectors.summingInt(Integer::valueOf)));
     }
+
+    @Test
+    public void shouldReturnEmptyListInTimeOut() throws InterruptedException {
+        BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
+        List<Integer> result = buffer.get();
+        Assert.assertTrue(0 == result.size());
+    }
 }
