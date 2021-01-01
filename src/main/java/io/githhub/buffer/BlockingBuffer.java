@@ -1,6 +1,8 @@
 package io.githhub.buffer;
 
 
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -14,11 +16,17 @@ public class BlockingBuffer<T> {
 
 
     private final T[] buffer;
-    private final long waitTime;
-    private volatile int read = 0, write = -1;
-    private final Lock lock = new ReentrantLock();
+    private final long maxWaitTime;
+    private volatile int writeIndex = -1;
+    private final Lock lock = new ReentrantLock(true);
     private final Condition notFull  = lock.newCondition();
     private final Condition notEmpty = lock.newCondition();
+    private long lastWriteMillis = System.currentTimeMillis();
+
+    private static void checkNotNull(Object v) {
+        if (v == null)
+            throw new NullPointerException();
+    }
 
     public BlockingBuffer() {
         this(10);
@@ -30,42 +38,55 @@ public class BlockingBuffer<T> {
 
     public BlockingBuffer(int bufferSize, long maxWaitMillis) {
         if (bufferSize <= 0) {
-            throw new IllegalArgumentException("Buffer size must be greater than 0");
+            throw new IllegalArgumentException("bufferSize must be greater than 0");
+        }
+        if (maxWaitMillis <= 0) {
+            throw new IllegalArgumentException("maxWaitMillis must be greater than 0");
         }
         buffer = (T[]) new Object[bufferSize];
-        waitTime = maxWaitMillis;
+        maxWaitTime = maxWaitMillis;
     }
 
+
     public void add(T elm) throws InterruptedException {
-        Objects.requireNonNull(elm, "elm must not be null");
-        int writeIdx = ++write;
+        checkNotNull(elm);
+        int writeIdx = ++writeIndex;
         lock.lock();
         try {
             while (writeIdx >= buffer.length) {
                 notFull.await();
             }
             buffer[writeIdx] = elm;
+            lastWriteMillis = System.currentTimeMillis();
             notEmpty.signal();
         } finally {
             lock.unlock();
         }
     }
 
+
     public List<T> get() throws InterruptedException {
         lock.lock();
-        long getWaitTime = System.currentTimeMillis();
+        long currentTime = System.currentTimeMillis();
+        long millisToWait = Math.abs(currentTime - lastWriteMillis - maxWaitTime);
         try {
-            while (write <= 0 && (System.currentTimeMillis() - getWaitTime) < waitTime) {
-                notEmpty.await(10, TimeUnit.MILLISECONDS);
+            while (availableCapacity() != 0
+                    && System.currentTimeMillis() < (currentTime + millisToWait)) {
+                notEmpty.await(100, TimeUnit.NANOSECONDS);
             }
             List<T> result = Arrays.stream(buffer)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
-            write = 0;
+            writeIndex = 0;
             notFull.signal();
             return result;
         } finally {
             lock.unlock();
         }
+    }
+
+
+    private int availableCapacity() {
+        return buffer.length - writeIndex - 1;
     }
 }
