@@ -1,16 +1,13 @@
 package io.githhub.buffer;
 
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 public class BlockingBuffer<T> {
 
@@ -50,15 +47,16 @@ public class BlockingBuffer<T> {
 
     public void add(T elm) throws InterruptedException {
         checkNotNull(elm);
-        int writeIdx = ++writeIndex;
         lock.lock();
         try {
-            while (writeIdx >= buffer.length) {
-                notFull.await();
+            while (writeIndex >= buffer.length) {
+                notFull.await(1, TimeUnit.MILLISECONDS);
             }
+            int writeIdx = ++writeIndex;
             buffer[writeIdx] = elm;
-            lastWriteMillis = System.currentTimeMillis();
-            notEmpty.signal();
+            if (writeIdx == buffer.length-1) {
+                notEmpty.signal();
+            }
         } finally {
             lock.unlock();
         }
@@ -68,16 +66,19 @@ public class BlockingBuffer<T> {
     public List<T> get() throws InterruptedException {
         lock.lock();
         long currentTime = System.currentTimeMillis();
-        long millisToWait = Math.abs(currentTime - lastWriteMillis - maxWaitTime);
         try {
-            while (availableCapacity() != 0
-                    && System.currentTimeMillis() < (currentTime + millisToWait)) {
-                notEmpty.await(100, TimeUnit.NANOSECONDS);
+            while (availableCapacity() > 0 &&
+                    (System.currentTimeMillis() - currentTime) < maxWaitTime) {
+                notEmpty.await(1, TimeUnit.MILLISECONDS);
             }
-            List<T> result = Arrays.stream(buffer)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-            writeIndex = 0;
+            List<T> result = new ArrayList<>(10);
+            for (int i = 0; i < buffer.length; i++) {
+                if (buffer[i] != null) {
+                    result.add(buffer[i]);
+                }
+                buffer[i] = null;
+            }
+            writeIndex = -1;
             notFull.signal();
             return result;
         } finally {
@@ -85,8 +86,12 @@ public class BlockingBuffer<T> {
         }
     }
 
+    public int size() {
+        return (buffer.length) - availableCapacity();
+    }
+
 
     private int availableCapacity() {
-        return buffer.length - writeIndex - 1;
+        return (buffer.length-1) - writeIndex;
     }
 }

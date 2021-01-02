@@ -5,10 +5,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class BlockingBufferTest {
@@ -52,6 +49,30 @@ public class BlockingBufferTest {
 
 
     @Test
+    public void shouldAddConcurrentlyAndGetAll() throws InterruptedException, ExecutionException {
+        BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
+        ExecutorService exe = Executors.newCachedThreadPool();
+        for (int i = 0; i < 1000; i++) {
+            final int val = i;
+            exe.submit(() -> {
+                try {
+                    buffer.add(val);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+        int consumers = 1000 / 10;
+        for (int i = 0; i < consumers; i++) {
+            List<Integer> result = exe.submit(() -> buffer.get()).get();
+            Assert.assertEquals(10 , result.size(),i);
+        }
+        Assert.assertEquals(0, buffer.size());
+    }
+
+
+
+    @Test
     public void shouldWaitTillBufferIsFull() throws InterruptedException, ExecutionException {
         BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
         ExecutorService exe = Executors.newFixedThreadPool(4);
@@ -70,5 +91,14 @@ public class BlockingBufferTest {
         BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
         List<Integer> result = buffer.get();
         Assert.assertTrue(0 == result.size());
+    }
+
+    @Test
+    public void testSize() throws InterruptedException {
+        BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
+        buffer.add(1);
+        Assert.assertEquals(1, buffer.size());
+        buffer.add(2);
+        Assert.assertEquals(2, buffer.size());
     }
 }
