@@ -14,11 +14,6 @@ public class BlockingBuffer<T> {
     private final ArrayBlockingQueue<T> bufferQueue;
     private final int bufferSize;
 
-    private static void checkNotNull(Object v) {
-        if (v == null)
-            throw new NullPointerException();
-    }
-
     public BlockingBuffer() {
         this(10);
     }
@@ -46,9 +41,12 @@ public class BlockingBuffer<T> {
 
 
     public List<T> get() throws InterruptedException {
-        List<T> result = new ArrayList<>(10);
-        for (int i = 0; i < 10; i++) {
-            T el = bufferQueue.poll(maxWaitTime, TimeUnit.MILLISECONDS);
+        List<T> result = new ArrayList<>(bufferSize);
+        long remainingWait = maxWaitTime;
+        for (int i = 0; i < bufferSize; i++) {
+            long timeBeforePoll = System.currentTimeMillis();
+            T el = bufferQueue.poll(remainingWait, TimeUnit.MILLISECONDS);
+            remainingWait = System.currentTimeMillis() - timeBeforePoll;
             if (el == null) {
                 break;
             }
