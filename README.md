@@ -1,6 +1,6 @@
 # JBlockingBuffer
 
-Concurrent buffer
+Concurrent blocking buffer
 
 ```xml
 <dependency>
@@ -23,6 +23,7 @@ var list = buffer.get();
 ```java
 BlockingBuffer<Integer> buffer = new BlockingBuffer<>(10, Duration.ofMillis(500));
 buffer.add(1);
+// will release after 500 millis
 var list = buffer.get();
 ```
 
