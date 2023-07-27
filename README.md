@@ -6,7 +6,7 @@ Concurrent buffer
 <dependency>
   <groupId>io.github</groupId>
   <artifactId>jblockingbuffer</artifactId>
-  <version>0.1-SNAPSHOT</version>
+  <version>1.0</version>
 </dependency>
 
 ```
