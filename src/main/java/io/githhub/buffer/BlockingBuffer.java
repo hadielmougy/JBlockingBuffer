@@ -48,27 +48,30 @@ public class BlockingBuffer<T> {
 
     public List<T> get() {
         long timeBeforeLock = System.currentTimeMillis();
+        boolean acquired = false;
         try {
-            boolean locked = lock.tryLock(maxWaitTime.toMillis(), TimeUnit.MILLISECONDS);
-            if (locked) {
+            acquired = lock.tryLock(maxWaitTime.toMillis(), TimeUnit.MILLISECONDS);
+            if (acquired) {
                 return waitAndGet(System.currentTimeMillis() - timeBeforeLock);
             }
         } catch (InterruptedException ex) {
             ex.printStackTrace();
             Thread.currentThread().interrupt();
         } finally{
-            lock.unlock();
+            if (acquired) {
+                lock.unlock();
+            }
         }
         return Collections.emptyList();
     }
 
-    private List<T> waitAndGet(long lockTimeMillis) throws InterruptedException {
+    private List<T> waitAndGet(long lockMillis) throws InterruptedException {
         List<T> result = new LinkedList<>();
-        long remainingWaitMillis = maxWaitTime.toMillis() - lockTimeMillis;
+        long remainingMillis = maxWaitTime.toMillis() - lockMillis;
         for (int i = 0; i < getResultSize(); i++) {
             long timeBeforePoll = System.currentTimeMillis();
-            T el = bufferQueue.poll(remainingWaitMillis, TimeUnit.MILLISECONDS);
-            remainingWaitMillis = System.currentTimeMillis() - timeBeforePoll;
+            T el = bufferQueue.poll(remainingMillis, TimeUnit.MILLISECONDS);
+            remainingMillis = System.currentTimeMillis() - timeBeforePoll;
             if (el == null) {
                 break;
             }
@@ -86,11 +89,6 @@ public class BlockingBuffer<T> {
     }
 
     public void reset() {
-        try{
-            lock.lock();
-            bufferQueue.clear();
-        } finally{
-            lock.unlock();
-        }
+        bufferQueue.clear();
     }
 }
