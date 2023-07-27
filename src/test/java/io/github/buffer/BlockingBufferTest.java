@@ -4,6 +4,7 @@ import io.githhub.buffer.BlockingBuffer;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -50,7 +51,7 @@ public class BlockingBufferTest {
 
     @Test
     public void shouldAddConcurrentlyAndGetAll() throws InterruptedException, ExecutionException {
-        BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
+        BlockingBuffer<Integer> buffer = new BlockingBuffer<>(10, Duration.ofSeconds(10).toMillis());
         ExecutorService exe = Executors.newCachedThreadPool();
         for (int i = 0; i < 1000; i++) {
             final int val = i;
@@ -64,7 +65,7 @@ public class BlockingBufferTest {
         }
         int consumers = 1000 / 10;
         for (int i = 0; i < consumers; i++) {
-            List<Integer> result = exe.submit(() -> buffer.get()).get();
+            List<Integer> result = exe.submit(buffer::get).get();
             Assert.assertEquals(10 , result.size(),i);
         }
         Assert.assertEquals(0, buffer.size());
