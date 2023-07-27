@@ -31,7 +31,7 @@ public class BlockingBuffer<T> {
 
     public BlockingBuffer(int bufferSize, Duration duration) {
         this.bufferSize  = bufferSize;
-        this.maxWaitTime = Objects.requireNonNull(duration, "maxWaitMillis must be greater than 0");
+        this.maxWaitTime = Objects.requireNonNull(duration, "duration must not null");
         this.bufferQueue = queue(bufferSize);
     }
 
@@ -47,14 +47,11 @@ public class BlockingBuffer<T> {
     }
 
     public List<T> get() {
+        long timeBeforeLock = System.currentTimeMillis();
         try {
-            long timeBeforeLock = System.currentTimeMillis();
             boolean locked = lock.tryLock(maxWaitTime.toMillis(), TimeUnit.MILLISECONDS);
             if (locked) {
-                long acquireLockMillis = System.currentTimeMillis() - timeBeforeLock;
-                return waitAndGet(acquireLockMillis);
-            } else {
-                return Collections.emptyList();
+                return waitAndGet(System.currentTimeMillis() - timeBeforeLock);
             }
         } catch (InterruptedException ex) {
             ex.printStackTrace();
