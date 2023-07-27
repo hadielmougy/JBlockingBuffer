@@ -46,10 +46,16 @@ public class BlockingBuffer<T> {
         bufferQueue.put(elm);
     }
 
-    public List<T> get() throws InterruptedException {
+    public List<T> get() {
         try {
-            lock.lock();
-            return waitAndGet();
+            long timeBeforeLock = System.currentTimeMillis();
+            boolean locked = lock.tryLock(maxWaitTime.toMillis(), TimeUnit.MILLISECONDS);
+            if (locked) {
+                long acquireLockMillis = System.currentTimeMillis() - timeBeforeLock;
+                return waitAndGet(acquireLockMillis);
+            } else {
+                return Collections.emptyList();
+            }
         } catch (InterruptedException ex) {
             ex.printStackTrace();
             Thread.currentThread().interrupt();
@@ -59,13 +65,13 @@ public class BlockingBuffer<T> {
         return Collections.emptyList();
     }
 
-    private List<T> waitAndGet() throws InterruptedException {
+    private List<T> waitAndGet(long lockTimeMillis) throws InterruptedException {
         List<T> result = new LinkedList<>();
-        long remainingWait = maxWaitTime.toMillis();
+        long remainingWaitMillis = maxWaitTime.toMillis() - lockTimeMillis;
         for (int i = 0; i < getResultSize(); i++) {
             long timeBeforePoll = System.currentTimeMillis();
-            T el = bufferQueue.poll(remainingWait, TimeUnit.MILLISECONDS);
-            remainingWait = System.currentTimeMillis() - timeBeforePoll;
+            T el = bufferQueue.poll(remainingWaitMillis, TimeUnit.MILLISECONDS);
+            remainingWaitMillis = System.currentTimeMillis() - timeBeforePoll;
             if (el == null) {
                 break;
             }
