@@ -1,8 +1,10 @@
 package io.githhub.buffer;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -13,7 +15,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class BlockingBuffer<T> {
 
 
-    private final long maxWaitTime;
+    private final Duration maxWaitTime;
     private final BlockingQueue<T> bufferQueue;
     private final int bufferSize;
 
@@ -24,15 +26,12 @@ public class BlockingBuffer<T> {
     }
 
     public BlockingBuffer(int bufferSize) {
-        this(bufferSize, 100);
+        this(bufferSize, Duration.ofMillis(100));
     }
 
-    public BlockingBuffer(int bufferSize, long maxWaitMillis) {
-        if (maxWaitMillis <= 0) {
-            throw new IllegalArgumentException("maxWaitMillis must be greater than 0");
-        }
+    public BlockingBuffer(int bufferSize, Duration duration) {
         this.bufferSize  = bufferSize;
-        this.maxWaitTime = maxWaitMillis;
+        this.maxWaitTime = Objects.requireNonNull(duration, "maxWaitMillis must be greater than 0");
         this.bufferQueue = queue(bufferSize);
     }
 
@@ -61,18 +60,9 @@ public class BlockingBuffer<T> {
     }
 
     private List<T> waitAndGet() throws InterruptedException {
-        if (bufferSize == -1) {
-            return collectByTime();
-        } else {
-            return collectByTimeAndSize();
-        }
-
-    }
-
-    private List<T> collectByTimeAndSize() throws InterruptedException {
         List<T> result = new LinkedList<>();
-        long remainingWait = maxWaitTime;
-        for (int i = 0; i < bufferSize; i++) {
+        long remainingWait = maxWaitTime.toMillis();
+        for (int i = 0; i < getResultSize(); i++) {
             long timeBeforePoll = System.currentTimeMillis();
             T el = bufferQueue.poll(remainingWait, TimeUnit.MILLISECONDS);
             remainingWait = System.currentTimeMillis() - timeBeforePoll;
@@ -84,19 +74,8 @@ public class BlockingBuffer<T> {
         return result;
     }
 
-    private List<T> collectByTime() throws InterruptedException {
-        List<T> result = new LinkedList<>();
-        long remainingWait = maxWaitTime;
-        while (true) {
-            long timeBeforePoll = System.currentTimeMillis();
-            T el = bufferQueue.poll(remainingWait, TimeUnit.MILLISECONDS);
-            remainingWait = System.currentTimeMillis() - timeBeforePoll;
-            if (el == null) {
-                break;
-            }
-            result.add(el);
-        }
-        return result;
+    private int getResultSize() {
+        return bufferSize < 0 ? Integer.MAX_VALUE : bufferSize;
     }
 
     public int size() {

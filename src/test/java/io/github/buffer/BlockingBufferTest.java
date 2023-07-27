@@ -26,7 +26,7 @@ public class BlockingBufferTest {
 
     @Test
     public void shouldAddAndGetByTime() throws InterruptedException {
-        BlockingBuffer<Integer> buffer = new BlockingBuffer<>(-1, 500);
+        BlockingBuffer<Integer> buffer = new BlockingBuffer<>(-1, Duration.ofMillis(500));
         int sum = 0;
         for (int i = 0; i < 30; i++) {
             buffer.add(i);
@@ -64,7 +64,7 @@ public class BlockingBufferTest {
 
     @Test
     public void shouldAddConcurrentlyAndGetAll() throws InterruptedException, ExecutionException {
-        BlockingBuffer<Integer> buffer = new BlockingBuffer<>(10, Duration.ofSeconds(10).toMillis());
+        BlockingBuffer<Integer> buffer = new BlockingBuffer<>(10, Duration.ofSeconds(2));
         ExecutorService exe = Executors.newCachedThreadPool();
         for (int i = 0; i < 1000; i++) {
             final int val = i;
