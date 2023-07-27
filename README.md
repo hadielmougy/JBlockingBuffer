@@ -19,7 +19,7 @@ buffer.add(1);
 var list = buffer.get();
 ```
 
-## Buffer by size and time
+## Buffer by size and time (whatever happens first)
 ```java
 BlockingBuffer<Integer> buffer = new BlockingBuffer<>(10, Duration.ofMillis(500));
 buffer.add(1);
