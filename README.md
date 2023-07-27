@@ -15,11 +15,15 @@ Concurrent buffer
 ```java
 // buffer size -1 means unlimited size
 BlockingBuffer<Integer> buffer = new BlockingBuffer<>(-1, Duration.ofMillis(500));
+buffer.add(1);
+var list = buffer.get();
 ```
 
 ## Limit buffer by size and time
 ```java
 BlockingBuffer<Integer> buffer = new BlockingBuffer<>(10, Duration.ofMillis(500));
+buffer.add(1);
+var list = buffer.get();
 ```
 
 ### defaults
