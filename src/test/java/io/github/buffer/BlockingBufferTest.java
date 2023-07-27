@@ -21,7 +21,20 @@ public class BlockingBufferTest {
         }
         List<Integer> result = buffer.get();
         Assert.assertEquals(10, result.size());
-        Assert.assertTrue(sum ==  result.stream().collect(Collectors.summingInt(Integer::valueOf)));
+        Assert.assertEquals(sum, (int) (Integer) result.stream().mapToInt(Integer::valueOf).sum());
+    }
+
+    @Test
+    public void shouldAddAndGetByTime() throws InterruptedException {
+        BlockingBuffer<Integer> buffer = new BlockingBuffer<>(-1, 500);
+        int sum = 0;
+        for (int i = 0; i < 30; i++) {
+            buffer.add(i);
+            sum += i;
+        }
+        List<Integer> result = buffer.get();
+        Assert.assertEquals(30, result.size());
+        Assert.assertEquals(sum, (int) (Integer) result.stream().mapToInt(Integer::valueOf).sum());
     }
 
 
@@ -42,9 +55,9 @@ public class BlockingBufferTest {
             sum += i;
         }
         Thread.sleep(100);
-        List<Integer> result = exe.submit(() -> buffer.get()).get();
-        Assert.assertTrue(10 == result.size());
-        Assert.assertTrue(sum ==  result.stream().collect(Collectors.summingInt(Integer::valueOf)));
+        List<Integer> result = exe.submit(buffer::get).get();
+        Assert.assertEquals(10, result.size());
+        Assert.assertEquals(sum, (int) (Integer) result.stream().mapToInt(Integer::valueOf).sum());
     }
 
 
@@ -77,12 +90,12 @@ public class BlockingBufferTest {
     public void shouldWaitTillBufferIsFull() throws InterruptedException, ExecutionException {
         BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
         ExecutorService exe = Executors.newFixedThreadPool(4);
-        Future<List<Integer>> resultFuture = exe.submit(() -> buffer.get());
+        Future<List<Integer>> resultFuture = exe.submit(buffer::get);
         for (int i = 0; i < 10; i++) {
             buffer.add(i);
         }
         List<Integer> result = resultFuture.get();
-        Assert.assertTrue(10 == result.size());
+        Assert.assertEquals(10, result.size());
     }
 
 
@@ -91,7 +104,7 @@ public class BlockingBufferTest {
     public void shouldReturnEmptyListInTimeOut() throws InterruptedException {
         BlockingBuffer<Integer> buffer = new BlockingBuffer<>();
         List<Integer> result = buffer.get();
-        Assert.assertTrue(0 == result.size());
+        Assert.assertEquals(0, result.size());
     }
 
     @Test

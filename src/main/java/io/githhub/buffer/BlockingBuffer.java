@@ -1,8 +1,5 @@
 package io.githhub.buffer;
 
-
-
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,7 +39,7 @@ public class BlockingBuffer<T> {
     private BlockingQueue<T> queue(int bufferSize) {
         return bufferSize == -1 ?
                 new LinkedBlockingQueue<>() :
-                new ArrayBlockingQueue<>(bufferSize);
+                new ArrayBlockingQueue<>(bufferSize, true);
     }
 
 
@@ -64,7 +61,16 @@ public class BlockingBuffer<T> {
     }
 
     private List<T> waitAndGet() throws InterruptedException {
-        List<T> result = newList();
+        if (bufferSize == -1) {
+            return collectByTime();
+        } else {
+            return collectByTimeAndSize();
+        }
+
+    }
+
+    private List<T> collectByTimeAndSize() throws InterruptedException {
+        List<T> result = new LinkedList<>();
         long remainingWait = maxWaitTime;
         for (int i = 0; i < bufferSize; i++) {
             long timeBeforePoll = System.currentTimeMillis();
@@ -78,12 +84,20 @@ public class BlockingBuffer<T> {
         return result;
     }
 
-    private List<T> newList() {
-        return bufferSize == -1 ?
-                new LinkedList<>() :
-                new ArrayList<>(bufferSize);
+    private List<T> collectByTime() throws InterruptedException {
+        List<T> result = new LinkedList<>();
+        long remainingWait = maxWaitTime;
+        while (true) {
+            long timeBeforePoll = System.currentTimeMillis();
+            T el = bufferQueue.poll(remainingWait, TimeUnit.MILLISECONDS);
+            remainingWait = System.currentTimeMillis() - timeBeforePoll;
+            if (el == null) {
+                break;
+            }
+            result.add(el);
+        }
+        return result;
     }
-
 
     public int size() {
         return bufferQueue.size();
